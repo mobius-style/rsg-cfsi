@@ -1,0 +1,3 @@
+series_id,source,frequency,transformation,sample_window,license
+vol_proxy,EXAMPLE_PROVIDER,daily,z-score on train window,2004-01-02..2021-12-31,check provider terms
+spread_proxy,EXAMPLE_PROVIDER,daily,z-score on train window,2004-01-02..2021-12-31,check provider terms

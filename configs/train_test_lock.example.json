@@ -1,0 +1,8 @@
+{
+  "split": "chronological",
+  "train_end_date": "YYYY-MM-DD (fix BEFORE any test evaluation)",
+  "reoptimization_on_test": false,
+  "crisis_labels": "source and construction rule, fixed before testing",
+  "parameter_search_limits": "document every grid searched on TRAIN",
+  "ewi_weights": "reference (0.35/0.25/0.40); report sensitivity, never tune on test"
+}

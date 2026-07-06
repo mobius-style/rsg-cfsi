@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "Cite the paper for the method and this repository for the implementation."
+title: "RSG-CFSI reference implementation"
+authors:
+  - family-names: Toeda
+    given-names: Taiko
+    affiliation: MOBIUS LLC
+    orcid: "https://orcid.org/0009-0001-7267-0201"
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/mobius-style/rsg-cfsi"
+references:
+  - type: article
+    title: "RSG-CFSI: A Regularized Financial Stress Indicator with Out-of-Sample Stability — Baseline Separation, Theory Discrimination, and Complexity Accounting"
+    authors:
+      - family-names: Toeda
+        given-names: Taiko
+    year: 2026
+    notes: "MOBIUS Technical Companion Papers, No. 1. Zenodo (DOI on the paper record)."
