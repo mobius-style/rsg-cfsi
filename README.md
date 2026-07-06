@@ -10,14 +10,24 @@ reserved and is not included here.
 
 ## What is implemented (MVP scope)
 
-The paper's Section-3 core, exactly as specified:
+The paper's Section-3 core with the monograph's canonical constants
+(*Reflective Economics & Financial Engineering*, Chapter 8, RSG-1/5/9):
 
 ```
-Phi_t = alpha * Phi_{t-1} + (1 - alpha) * (w_t · x_t)   # mean-reverting stress state
-eta_min <= eta_t <= eta_max                              # bounded adaptive learning
-m_t   = ΔPhi_t * exp(-gamma * |ΔPhi_t|)                  # damped momentum
-EWI_t = 0.35·norm(Phi_t) + 0.25·norm(m_t) + 0.40·norm(p_t)
+Phi_t = alpha * Phi_{t-1} + (1 - alpha) * (w_t · x_t)   # mean reversion (RSG-1)
+eta_t : eta_init → eta_steady, bounded [eta_min, eta_max] # bounded adaptive learning (RSG-5)
+m_t   = ΔPhi_t * exp(-γ|ΔPhi_t|),  γ = 0.3               # damped momentum (RSG-9)
+EWI_t = 0.35·Φ̃_t + 0.25·m̃_t + 0.40·p̃_t                  # Φ̃, m̃: train-window min-max
 ```
+
+The canonical crisis labeler (Chapter 8.5: joint 90th-percentile
+exceedance of all inputs, thresholds from the training window) ships as
+`labels.joint_exceedance_labels`. The monograph's real-data benchmark
+(VIX + TED + BAA-AAA, 2004–2014 train / 2015–2021 test) is the
+replication target: EWI alone test AUC ≈ 0.826 (stable vs VIX's 0.90 →
+0.81 degradation), combined ≈ 0.967; lead-time AUC 0.791 / 0.762 / 0.746
+at 5/10/20 days. This repository ships no market data; reproduce those
+numbers with your own licensed series via the config templates.
 
 plus the Section-4 validation protocol: chronological train/test lock (no
 re-optimization on test), rank AUC, Brier score, calibration bins,

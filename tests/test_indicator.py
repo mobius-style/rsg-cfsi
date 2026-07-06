@@ -20,10 +20,22 @@ def test_stress_state_mean_reversion():
 
 def test_momentum_damping_bounds_extremes():
     p = CFSIParams()
-    big, small = 5.0, 0.05
-    m_big = big * np.exp(-p.gamma * big)
-    m_small = small * np.exp(-p.gamma * small)
-    assert m_small > m_big  # extreme jumps are damped below modest moves
+    assert p.gamma == 0.3  # canonical RSG-9 constant (monograph Ch. 8)
+    # damped momentum is globally bounded by 1/(gamma*e) regardless of jump size
+    bound = 1.0 / (p.gamma * np.e) + 1e-9
+    for jump in (0.05, 1.0, 5.0, 50.0):
+        assert abs(jump * np.exp(-p.gamma * jump)) <= bound
+    # and the damping factor is strictly decreasing in |dPhi|
+    f = lambda d: np.exp(-p.gamma * d)
+    assert f(0.1) > f(1.0) > f(10.0)
+
+
+def test_eta_schedule_converges_within_bounds():
+    p = CFSIParams()
+    assert abs(p.eta_at(0) - p.eta_init) < 1e-6
+    assert abs(p.eta_at(10_000) - p.eta_steady) < 1e-3
+    for t in (0, 10, 100, 1000, 10_000):
+        assert p.eta_min <= p.eta_at(t) <= p.eta_max
 
 
 def test_auc_known_values():

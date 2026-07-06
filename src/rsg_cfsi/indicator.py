@@ -29,41 +29,53 @@ REFERENCE_WEIGHTS = {"phi": 0.35, "momentum": 0.25, "probability": 0.40}
 
 @dataclass
 class CFSIParams:
+    """Canonical constants follow the monograph's Chapter 8 (RSG-1/5/9):
+    gamma = 0.3 (damped momentum); the adaptive learning rate eta_t
+    CONVERGES from an initial value toward a steady state as evidence
+    accumulates, bounded throughout (RSG-5)."""
     alpha: float = 0.94          # mean-reversion memory of the stress state
-    gamma: float = 2.0           # momentum damping strength
-    eta: float = 0.05            # adaptive learning rate for input weights
-    eta_min: float = 0.01        # bounded-learning floor
-    eta_max: float = 0.20        # bounded-learning ceiling
+    gamma: float = 0.3           # momentum damping (canonical, RSG-9)
+    eta_init: float = 0.15       # initial adaptive learning rate
+    eta_steady: float = 0.03     # steady-state learning rate
+    eta_tau: float = 250.0       # convergence time constant (steps)
+    eta_min: float = 0.01        # bounded-learning floor (RSG-5)
+    eta_max: float = 0.20        # bounded-learning ceiling (RSG-5)
     ewi_weights: dict = field(default_factory=lambda: dict(REFERENCE_WEIGHTS))
+
+    def eta_at(self, t: int) -> float:
+        import math
+        eta = self.eta_steady + (self.eta_init - self.eta_steady) * math.exp(
+            -t / self.eta_tau)
+        return float(min(max(eta, self.eta_min), self.eta_max))
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.alpha < 1.0):
             raise ValueError("alpha must be in [0, 1)")
-        if not (self.eta_min <= self.eta <= self.eta_max):
-            raise ValueError("eta must satisfy eta_min <= eta <= eta_max")
+        if not (self.eta_min <= self.eta_steady <= self.eta_init <= self.eta_max):
+            raise ValueError("require eta_min <= eta_steady <= eta_init <= eta_max")
         if abs(sum(self.ewi_weights.values()) - 1.0) > 1e-9:
             raise ValueError("EWI weights must sum to 1")
 
 
 @dataclass
 class TrainScaling:
-    """Normalization constants — estimated on TRAINING data only (Section 4:
-    no re-optimization on the test window)."""
-    phi_mean: float
-    phi_std: float
-    m_mean: float
-    m_std: float
+    """Min-max normalization constants (the monograph's canonical choice
+    for Phi-tilde and m-tilde) — estimated on TRAINING data only; test
+    values are clipped into [0, 1] so no test information leaks in."""
+    phi_min: float
+    phi_max: float
+    m_min: float
+    m_max: float
 
     def norm_phi(self, v: np.ndarray) -> np.ndarray:
-        return _squash((v - self.phi_mean) / self.phi_std)
+        return _minmax(v, self.phi_min, self.phi_max)
 
     def norm_m(self, v: np.ndarray) -> np.ndarray:
-        return _squash((v - self.m_mean) / self.m_std)
+        return _minmax(v, self.m_min, self.m_max)
 
 
-def _squash(z: np.ndarray) -> np.ndarray:
-    """Map a z-scored series into [0, 1] via the logistic function."""
-    return 1.0 / (1.0 + np.exp(-z))
+def _minmax(v: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    return np.clip((v - lo) / (hi - lo + 1e-12), 0.0, 1.0)
 
 
 def stress_state(x: np.ndarray, params: CFSIParams,
@@ -89,7 +101,7 @@ def stress_state(x: np.ndarray, params: CFSIParams,
         d_phi = phi[t] - prev_phi
         m[t] = d_phi * np.exp(-params.gamma * abs(d_phi))
         if adaptive and t > 0:
-            eta_t = float(np.clip(params.eta, params.eta_min, params.eta_max))
+            eta_t = params.eta_at(t)
             w = w + eta_t * d_phi * (x[t] - signal)
             w = np.clip(w, 0.0, None)
             s = w.sum()
@@ -129,10 +141,10 @@ def ewi(x: np.ndarray, labels: np.ndarray, train_end: int,
     params = params or CFSIParams()
     phi, m = stress_state(x, params, adaptive=use_bounded_learning)
     scale = TrainScaling(
-        phi_mean=float(phi[:train_end].mean()),
-        phi_std=float(phi[:train_end].std() + 1e-12),
-        m_mean=float(m[:train_end].mean()),
-        m_std=float(m[:train_end].std() + 1e-12),
+        phi_min=float(phi[:train_end].min()),
+        phi_max=float(phi[:train_end].max()),
+        m_min=float(m[:train_end].min()),
+        m_max=float(m[:train_end].max()),
     )
     p, coef = crisis_probability(phi, labels, train_end)
     wts = params.ewi_weights
